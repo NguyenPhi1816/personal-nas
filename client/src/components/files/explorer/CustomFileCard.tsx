@@ -1,3 +1,5 @@
+import { cn } from "@/src/lib/cn";
+import { FileEntry } from "@/src/types/file.type";
 import {
   Download,
   Edit,
@@ -10,8 +12,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { formatDate, formatFileSize } from "../file-entry";
-import { cn } from "@/src/lib/cn";
-import { FileEntry } from "@/src/types/file.type";
+import { useEffect, useState } from "react";
+import { useDelayedInView } from "@/src/hooks/useDelayedInView";
 
 interface CustomFileCardProps {
   item: FileEntry;
@@ -65,6 +67,19 @@ export function CustomFileCard({
   onDownload,
   onDelete,
 }: CustomFileCardProps) {
+  const { ref: listRef, inView: listInView } = useDelayedInView(300);
+  const { ref: gridRef, inView: gridInView } = useDelayedInView(300);
+
+  const [listLoaded, setListLoaded] = useState(false);
+  const [gridLoaded, setGridLoaded] = useState(false);
+
+  useEffect(() => {
+    if (listInView) setListLoaded(true);
+  }, [listInView]);
+
+  useEffect(() => {
+    if (gridInView) setGridLoaded(true);
+  }, [gridInView]);
   if (viewMode === "list") {
     return (
       <div className="group flex items-center justify-between gap-3 rounded-2xl border border-border-glass bg-surface px-3 py-2.5 transition-all hover:border-border-glass-bright hover:bg-surface-elevated">
@@ -73,8 +88,11 @@ export function CustomFileCard({
           onClick={() => onOpen(item)}
           className="flex min-w-0 flex-1 items-center gap-3 text-left"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-50 dark:bg-slate-900/40">
-            {item.previewUrl && item.kind !== "folder" ? (
+          <div
+            ref={listRef}
+            className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-50 dark:bg-slate-900/40"
+          >
+            {item.previewUrl && item.kind !== "folder" && listLoaded ? (
               <img
                 src={item.previewUrl}
                 alt={item.name}
@@ -157,8 +175,11 @@ export function CustomFileCard({
       </div>
 
       <button type="button" onClick={() => onOpen(item)} className="w-full">
-        <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-50 dark:bg-slate-900/40">
-          {item.previewUrl && item.type === "file" ? (
+        <div
+          ref={gridRef}
+          className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-50 dark:bg-slate-900/40"
+        >
+          {item.previewUrl && item.type === "file" && gridLoaded ? (
             <>
               <img
                 src={item.previewUrl}

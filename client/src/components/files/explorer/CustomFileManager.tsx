@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronRight, LayoutGrid, List, Plus } from "lucide-react";
 import { fileApi } from "@/src/services/file-api";
-import MediaPreviewDialog from "../dialogs/MediaPreviewDialog";
 import { buildBreadcrumbs, toFileEntry } from "../file-entry";
 import { CreateFolderDialog } from "../dialogs/CreateFolderDialog";
 import { CustomFileCard } from "./CustomFileCard";
 import { CustomSidebar } from "./CustomSidebar";
 import { CustomTopBar } from "./CustomTopBar";
+import ImagePreviewDialog from "../dialogs/ImagePreviewDialog";
 import { UploadDialog } from "../dialogs/UploadDialog";
+import VideoPreviewDialog from "../dialogs/VideoPreviewDialog";
 import type {
   FileEntry,
   FileViewMode,
@@ -347,10 +348,15 @@ export default function CustomFileManager({
         }
       />
 
-      {previewFile ? (
-        <MediaPreviewDialog
+      {previewFile?.fileType === "video" ? (
+        <VideoPreviewDialog
           filePath={previewFile.filePath}
-          fileType={previewFile.fileType}
+          onClose={() => setPreviewFile(null)}
+        />
+      ) : previewFile ? (
+        <ImagePreviewDialog
+          filePath={previewFile.filePath}
+          fileType={previewFile.fileType === "raw" ? "raw" : "image"}
           onClose={() => setPreviewFile(null)}
         />
       ) : null}

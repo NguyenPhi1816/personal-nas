@@ -41,7 +41,7 @@ export class ImageService {
         "-frames:v",
         "1",
         "-vf",
-        `scale=min(${width},iw):-1`,
+        `scale=min(${width}\\,iw):-1`,
         outputPath,
       ]);
 
