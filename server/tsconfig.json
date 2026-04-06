@@ -1,15 +1,28 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "target": "es2019",
-    "outDir": "dist",
-    "strict": true,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "types": ["node", "jest"],
     "esModuleInterop": true,
-    "skipLibCheck": true,
-    "sourceMap": true,
-    "experimentalDecorators": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "removeComments": true,
     "emitDecoratorMetadata": true,
-    "moduleResolution": "node"
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "sourceMap": true,
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "tsBuildInfoFile": "./dist/tsconfig.build.tsbuildinfo",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": true,
+    "strictBindCallApply": true,
+    "noFallthroughCasesInSwitch": true
   },
   "include": ["src/**/*"]
 }

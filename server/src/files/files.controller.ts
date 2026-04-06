@@ -14,7 +14,7 @@ import {
 } from "@nestjs/common";
 import { FileService } from "./file.service";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { Response, Request } from "express";
+import type { Response, Request } from "express";
 import * as multer from "multer";
 import * as fs from "fs";
 import * as path from "path";

@@ -1,6 +1,6 @@
 import { Controller, Get, Query, Res, UseGuards } from "@nestjs/common";
 import { ImageService } from "./image.service";
-import { Response } from "express";
+import type { Response } from "express";
 import { RequireAuthGuard } from "../auth/require-auth.guard";
 import { ThumbnailQueryDto } from "./dto/thumbnail.query.dto";
 

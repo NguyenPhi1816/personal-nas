@@ -1,3 +1,4 @@
+import * as os from "os";
 import * as path from "path";
 
 function readTextEnv(key: string): string | undefined {
@@ -36,7 +37,8 @@ export function getNasRootDir(): string {
 
 export function getUploadTmpDir(): string {
   return (
-    readTextEnv("UPLOAD_TMP_DIR") ?? path.join(process.cwd(), ".tmp", "uploads")
+    readTextEnv("UPLOAD_TMP_DIR") ??
+    path.join(os.tmpdir(), "personal-nas", "uploads")
   );
 }
 

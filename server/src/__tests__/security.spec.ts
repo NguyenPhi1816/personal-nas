@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { INestApplication } from "@nestjs/common";
 import request from "supertest";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import jwt from "jsonwebtoken";
 
@@ -10,7 +11,7 @@ describe("Security hardening checks", () => {
   let tmpRoot: string;
   let token: string;
   beforeAll(async () => {
-    tmpRoot = fs.mkdtempSync(path.join(process.cwd(), "tmp-root-"));
+    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "personal-nas-root-"));
     process.env.NAS_ROOT_DIR = tmpRoot;
     process.env.JWT_SECRET = "test-secret";
     fs.writeFileSync(path.join(tmpRoot, "hello.txt"), "hello");

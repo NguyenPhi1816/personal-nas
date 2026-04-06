@@ -7,7 +7,7 @@ import {
   UseGuards,
   UnauthorizedException,
 } from "@nestjs/common";
-import { Request } from "express";
+import type { Request } from "express";
 import { JwtAuthGuard } from "./jwt.guard";
 import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";

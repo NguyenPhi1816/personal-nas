@@ -71,6 +71,8 @@ Use `server/.env` with values similar to `server/.env.example`:
 - `UPLOAD_TMP_DIR`
 - `THUMB_CACHE_DIR`
 
+`UPLOAD_TMP_DIR` is optional; when omitted, uploads use the OS temp directory outside the repo.
+
 ## Local Development
 
 ### 1. Backend
@@ -78,10 +80,12 @@ Use `server/.env` with values similar to `server/.env.example`:
 ```bash
 cd server
 npm install
-npm run dev
+npm run start:dev
 ```
 
 Default: `http://localhost:3000`.
+
+`npm run dev` is kept as a local alias for the same Nest watch mode.
 
 ### 2. Frontend
 
@@ -97,10 +101,11 @@ Default: `http://localhost:3001`.
 
 ### Server
 
-- `npm run dev`: development mode
-- `npm run build`: compile TypeScript
-- `npm start`: run compiled build
-- `npm test`: run Jest tests
+- `npm run dev`: Nest watch mode alias
+- `npm run start:dev`: Nest watch mode
+- `npm run build`: Nest CLI build
+- `npm start`: start Nest app
+- `npm run test`: run Jest tests
 
 ### Client
 
@@ -140,4 +145,5 @@ This repository now includes:
 - `server/.gitignore`
 
 These ignore build artifacts, node modules, temp files, and private env files so the repository is ready to push to GitHub.
+
 # personal-nas

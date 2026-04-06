@@ -2,13 +2,14 @@ import { Test } from "@nestjs/testing";
 import { INestApplication } from "@nestjs/common";
 import request from "supertest";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 
 describe("Auth login flow", () => {
   let app: INestApplication;
   let tmpRoot: string;
   beforeAll(async () => {
-    tmpRoot = fs.mkdtempSync(path.join(process.cwd(), "tmp-root-"));
+    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "personal-nas-root-"));
     process.env.NAS_ROOT_DIR = tmpRoot;
     process.env.JWT_SECRET = "test-secret";
     const { AppModule } = require("../app.module");
@@ -20,6 +21,7 @@ describe("Auth login flow", () => {
   });
   afterAll(async () => {
     if (app) await app.close();
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
   });
 
   it("POST /api/auth/login with valid credentials returns token", async () => {
@@ -38,8 +40,8 @@ describe("Auth login flow", () => {
       .post("/auth/login")
       .send({ username: "admin", password: "wrongpass" })
       .expect(401); // UnauthorizedException returns 401
-    
-    expect(res.body).toHaveProperty('message');
+
+    expect(res.body).toHaveProperty("message");
   });
 
   it("can use token to access protected endpoint", async () => {
