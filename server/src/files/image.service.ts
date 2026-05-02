@@ -5,7 +5,7 @@ import * as crypto from "crypto";
 import { spawn } from "child_process";
 import sharp from "sharp";
 import { getMimeType } from "../utils/mime-types";
-import { resolveInsideRoot, ensureDirExists } from "../utils/path-utils";
+import { resolveInsideOwnerRoot, ensureDirExists } from "../utils/path-utils";
 import { getThumbCacheDir } from "../common/config/app-config";
 
 @Injectable()
@@ -116,8 +116,8 @@ export class ImageService {
     }
   }
 
-  async generateThumbnail(relPath: string, width = 200) {
-    const abs = resolveInsideRoot(relPath);
+  async generateThumbnail(ownerFolder: string, relPath: string, width = 200) {
+    const abs = resolveInsideOwnerRoot(ownerFolder, relPath);
     if (!fs.existsSync(abs)) throw new BadRequestException("Image not found");
 
     const safeWidth = Number.isFinite(width)

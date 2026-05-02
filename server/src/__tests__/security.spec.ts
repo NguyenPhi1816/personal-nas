@@ -14,7 +14,18 @@ describe("Security hardening checks", () => {
     tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "personal-nas-root-"));
     process.env.NAS_ROOT_DIR = tmpRoot;
     process.env.JWT_SECRET = "test-secret";
-    fs.writeFileSync(path.join(tmpRoot, "hello.txt"), "hello");
+    const testerRoot = path.join(tmpRoot, "tester");
+    const otherUserRoot = path.join(tmpRoot, "otheruser");
+    fs.mkdirSync(testerRoot, { recursive: true });
+    fs.mkdirSync(otherUserRoot, { recursive: true });
+    fs.writeFileSync(path.join(testerRoot, "hello.txt"), "hello");
+    fs.writeFileSync(
+      path.join(otherUserRoot, "sample.png"),
+      Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO3N3NkAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    );
     const { AppModule } = require("../app.module");
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
@@ -52,6 +63,16 @@ describe("Security hardening checks", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({ path: "/", folderName: "../bad" })
       .expect(400);
+    expect(res.body).toHaveProperty("message");
+  });
+
+  it("rejects thumbnail traversal outside the user folder", async () => {
+    const res = await request(app.getHttpServer())
+      .get("/images/thumbnail")
+      .set("Authorization", `Bearer ${token}`)
+      .query({ path: "../otheruser/sample.png", width: 64 })
+      .expect(403);
+
     expect(res.body).toHaveProperty("message");
   });
 });

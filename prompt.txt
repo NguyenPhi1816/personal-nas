@@ -1,0 +1,229 @@
+Bạn là senior full-stack engineer. Hãy refactor và mở rộng project Personal NAS hiện tại để hỗ trợ hệ thống “tools” có thể mở rộng về sau. Tool đầu tiên cần thêm là convert ảnh Sony RAW `.arw` sang `.jpg`.
+
+Bối cảnh project hiện tại:
+- Monorepo gồm:
+  - `client`: Next.js 16 App Router, React 19, TypeScript, Tailwind/shadcn-style UI.
+  - `server`: NestJS 11, TypeScript.
+- App hiện có tính năng quản lý file cá nhân:
+  - list/upload/download/delete/rename/create folder.
+  - auth bằng JWT.
+  - NAS root theo từng user qua `resolveInsideOwnerRoot(ownerFolder, relPath)`.
+  - đã có `FilesController`, `FileService`.
+  - đã có `ImagesController`, `ImageService`.
+  - `ImageService` hiện đã nhận diện RAW như `.arw`, `.cr2`, `.nef`, `.dng`, `.raf`, `.orf`, `.rw2` để tạo thumbnail bằng cách extract embedded JPEG preview.
+- Cần giữ nguyên cơ chế bảo mật path hiện tại: mọi input path phải resolve bên trong folder user, tuyệt đối không cho path traversal.
+
+Mục tiêu chính:
+1. Tái cấu trúc backend để có kiến trúc “tool system” mở rộng được.
+2. Thêm tool đầu tiên: convert Sony `.arw` sang `.jpg`.
+3. Thiết kế sao cho sau này có thể thêm raw profile của Canon/Nikon/Fuji/Panasonic/Olympus/DNG mà không cần viết lại toàn bộ pipeline.
+4. Tích hợp UI cơ bản ở frontend để user có thể chọn file `.arw` trong NAS và convert sang JPG.
+
+Yêu cầu kiến trúc backend:
+
+Tạo module mới:
+
+- `server/src/tools/tools.module.ts`
+- `server/src/tools/tools.controller.ts`
+- `server/src/tools/tools.service.ts`
+
+Tạo cấu trúc tool registry:
+
+- `server/src/tools/tool.types.ts`
+- `server/src/tools/tool-registry.service.ts`
+- `server/src/tools/profiles/raw-profile.types.ts`
+- `server/src/tools/profiles/raw-profile.registry.ts`
+
+Tool system cần support:
+- list tools: `GET /api/tools`
+- get tool detail: `GET /api/tools/:toolId`
+- run tool: `POST /api/tools/:toolId/run`
+
+Tool interface gợi ý:
+
+```ts
+export interface ToolDefinition {
+  id: string;
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+  outputSchema: Record<string, unknown>;
+  run(context: ToolRunContext, input: unknown): Promise<unknown>;
+}
+
+export interface ToolRunContext {
+  ownerFolder: string;
+}
+```
+
+Tool đầu tiên:
+
+- id: `raw-to-jpg`
+- name: `RAW to JPG Converter`
+- version đầu tiên chỉ support Sony `.arw`.
+- Input:
+  - `sourcePath: string` - path file `.arw` trong NAS của user.
+  - `outputDir?: string` - folder xuất JPG, mặc định cùng folder với file RAW.
+  - `outputName?: string` - tên file JPG, mặc định cùng basename với source.
+  - `quality?: number` - mặc định 92, min 1, max 100.
+  - `overwrite?: boolean` - mặc định false.
+  - `profileId?: string` - mặc định `sony-arw-default`.
+- Output:
+  - `success: boolean`
+  - `sourcePath`
+  - `outputPath`
+  - `profileId`
+  - `engine`
+  - `metadata?`
+
+Yêu cầu raw profile system:
+
+Tạo profile đầu tiên:
+
+```ts
+export const sonyArwDefaultProfile: RawProfile = {
+  id: "sony-arw-default",
+  vendor: "sony",
+  label: "Sony ARW Default",
+  extensions: [".arw"],
+  cameraMakeMatchers: ["SONY", "Sony"],
+  engine: "darktable-cli",
+  output: {
+    format: "jpg",
+    quality: 92,
+    colorSpace: "sRGB",
+  },
+};
+```
+
+Thiết kế `RawProfile` sao cho sau này thêm được:
+
+```ts
+{
+  id: "canon-cr3-default",
+  vendor: "canon",
+  extensions: [".cr3"],
+  cameraMakeMatchers: ["Canon"],
+  engine: "darktable-cli"
+}
+```
+
+Yêu cầu xử lý `.arw`:
+
+- Backend cần validate:
+  - sourcePath tồn tại.
+  - extension là `.arw`.
+  - file nằm trong owner root.
+  - outputDir cũng nằm trong owner root.
+  - không overwrite nếu `overwrite !== true`.
+- Dùng `child_process.spawn` thay vì `exec`.
+- Tạo service riêng:
+  - `server/src/tools/raw/raw-to-jpg.tool.ts`
+  - `server/src/tools/raw/raw-converter.service.ts`
+  - `server/src/tools/raw/raw-metadata.service.ts`
+- Primary engine: `darktable-cli`.
+- Command export nên gọi dạng an toàn, ví dụ:
+  - `darktable-cli <inputPath> <outputPath>`
+- Không nối command bằng string.
+- Nếu `darktable-cli` không tồn tại hoặc exit code != 0, trả error rõ ràng:
+  - “darktable-cli is not installed or not available in PATH”
+  - “RAW conversion failed: ...”
+- Thêm env config:
+  - `DARKTABLE_CLI_PATH`, default `"darktable-cli"`.
+- Không cài darktable bằng npm. Chỉ document rằng host/server cần cài darktable system package.
+
+Yêu cầu metadata:
+
+- Nếu có thể, dùng package hiện tại `exifreader` để đọc metadata cơ bản.
+- Nếu `exifreader` không đọc được RAW metadata thì không fail conversion; chỉ trả metadata rỗng hoặc partial.
+- Metadata nên cố lấy:
+  - make
+  - model
+  - lens
+  - iso
+  - aperture
+  - shutterSpeed
+  - focalLength
+  - dateTimeOriginal
+
+Yêu cầu frontend:
+
+Thêm UI tối thiểu để chạy tool từ file manager.
+
+Cách tích hợp mong muốn:
+- Trong file card hoặc action menu của file, nếu extension là `.arw`, hiển thị action:
+  - “Convert to JPG”
+- Khi click:
+  - mở dialog nhỏ.
+  - cho chọn:
+    - quality, mặc định 92.
+    - output name, mặc định basename + `.jpg`.
+    - overwrite checkbox.
+  - submit gọi API `POST /api/tools/raw-to-jpg/run`.
+- Sau khi convert thành công:
+  - hiển thị toast/alert thành công.
+  - refresh file list.
+  - nếu có `outputPath`, cho nút “Open/Download JPG”.
+- Tạo service frontend:
+  - `client/src/services/tools-api.ts`
+- Tạo types:
+  - `client/src/types/tool.type.ts`
+
+Không cần build editor Lightroom trong bước này. Chỉ cần convert `.arw` sang `.jpg`.
+
+Yêu cầu refactor frontend nếu cần:
+- Không phá vỡ `CustomFileManager`.
+- Thêm action theo cách tối thiểu, sạch, dễ mở rộng.
+- Có helper nhận diện extension:
+  - `.arw` là raw Sony.
+- Không hard-code tool logic khắp UI. Nên tạo mapping action theo extension/tool.
+
+Yêu cầu testing:
+
+Backend:
+- Thêm unit/integration tests nếu test setup hiện tại cho phép.
+- Test tối thiểu:
+  1. reject non-ARW file.
+  2. reject path traversal.
+  3. reject output overwrite khi file đã tồn tại và overwrite=false.
+  4. build output path đúng.
+  5. mock `spawn` để test conversion success/failure.
+  6. `GET /tools` trả về `raw-to-jpg`.
+
+Frontend:
+- Không bắt buộc thêm test nếu project chưa có test frontend.
+- Nhưng code phải type-check.
+
+Yêu cầu tài liệu:
+
+Cập nhật README:
+- Thêm section “Tools system”.
+- Thêm section “RAW to JPG converter”.
+- Ghi rõ dependency:
+  - Cần cài `darktable-cli` trên server host.
+  - Env optional: `DARKTABLE_CLI_PATH=/usr/bin/darktable-cli`
+- Ghi rõ hiện tại chỉ support Sony `.arw`.
+- Ghi rõ kiến trúc profile-based để sau này thêm Canon/Nikon/Fuji.
+
+Yêu cầu chất lượng code:
+
+- TypeScript strict-friendly.
+- Không dùng `any` trừ khi bất khả kháng.
+- Dùng DTO validation với `class-validator`.
+- Không bypass auth guard.
+- Không bypass path safety utils.
+- Không để user truyền absolute path.
+- Không ghi file ra ngoài NAS user root.
+- Error message rõ ràng.
+- Code dễ mở rộng thêm tool khác, ví dụ image resize, video transcode, PDF compress về sau.
+- Sau khi code xong, chạy:
+  - server: `npm run build`
+  - server: `npm run test`
+  - client: `npm run build`
+- Nếu build/test fail, sửa đến khi pass.
+
+Kết quả mong muốn:
+- App có endpoint tool system.
+- User có thể chọn file Sony `.arw` trong NAS và convert sang `.jpg`.
+- Code có raw profile registry, hiện có `sony-arw-default`.
+- Sau này thêm camera khác chỉ cần thêm profile mới và, nếu cần, adapter/engine mới.

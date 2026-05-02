@@ -38,8 +38,12 @@ export class FilesController {
   constructor(private readonly fileService: FileService) {}
 
   @Get()
-  async list(@Query() query: ListFilesQueryDto) {
-    return this.fileService.list(query.path ?? "/");
+  @UseGuards(RequireAuthGuard)
+  async list(@Query() query: ListFilesQueryDto, @Req() req: Request) {
+    return this.fileService.list(
+      this.getRequesterFolder(req),
+      query.path ?? "/",
+    );
   }
 
   @Post("upload")
@@ -60,8 +64,13 @@ export class FilesController {
   async upload(
     @UploadedFile() file: Express.Multer.File,
     @Body() body: UploadFileBodyDto,
+    @Req() req: Request,
   ) {
-    return this.fileService.saveUploadedFile(file, body.path ?? "/");
+    return this.fileService.saveUploadedFile(
+      this.getRequesterFolder(req),
+      file,
+      body.path ?? "/",
+    );
   }
 
   @Get("download")
@@ -71,13 +80,14 @@ export class FilesController {
     @Res() res: Response,
     @Req() req: Request,
   ) {
+    const userFolder = this.getRequesterFolder(req);
     const requestedPath = query.path;
 
     if (!requestedPath) {
       throw new BadRequestException("path is required");
     }
 
-    const meta = await this.fileService.stat(requestedPath);
+    const meta = await this.fileService.stat(userFolder, requestedPath);
     const mimeType = getMimeType(meta.name);
 
     const range = req.headers.range;
@@ -85,7 +95,10 @@ export class FilesController {
       mimeType.startsWith("video/") || mimeType.startsWith("image/");
 
     if (range && isStreamable) {
-      const filePath = await this.fileService.getAbsolutePath(requestedPath);
+      const filePath = await this.fileService.getAbsolutePath(
+        userFolder,
+        requestedPath,
+      );
       const fileSize = meta.size;
       const parts = range.replace(/bytes=/, "").split("-");
       const start = parseInt(parts[0], 10);
@@ -110,14 +123,20 @@ export class FilesController {
       res.setHeader("Content-Type", mimeType);
       fileStream.pipe(res);
     } else if (mimeType.startsWith("image/")) {
-      const stream = await this.fileService.createReadStream(requestedPath);
+      const stream = await this.fileService.createReadStream(
+        userFolder,
+        requestedPath,
+      );
       res.setHeader("Content-Type", mimeType);
       res.setHeader("Content-Length", String(meta.size));
       res.setHeader("Accept-Ranges", "bytes");
       res.setHeader("Content-Disposition", `inline; filename="${meta.name}"`);
       stream.pipe(res);
     } else {
-      const stream = await this.fileService.createReadStream(requestedPath);
+      const stream = await this.fileService.createReadStream(
+        userFolder,
+        requestedPath,
+      );
       res.setHeader("Content-Type", mimeType);
       res.setHeader("Content-Length", String(meta.size));
       res.setHeader("Content-Disposition", `inline; filename="${meta.name}"`);
@@ -127,19 +146,40 @@ export class FilesController {
 
   @Delete()
   @UseGuards(RequireAuthGuard)
-  async delete(@Body() body: DeleteFileDto) {
-    return this.fileService.delete(body.path);
+  async delete(@Body() body: DeleteFileDto, @Req() req: Request) {
+    return this.fileService.delete(this.getRequesterFolder(req), body.path);
   }
 
   @Post("rename")
   @UseGuards(RequireAuthGuard)
-  async rename(@Body() body: RenameFileDto) {
-    return this.fileService.rename(body.oldPath, body.newName);
+  async rename(@Body() body: RenameFileDto, @Req() req: Request) {
+    return this.fileService.rename(
+      this.getRequesterFolder(req),
+      body.oldPath,
+      body.newName,
+    );
   }
 
   @Post("folder")
   @UseGuards(RequireAuthGuard)
-  async createFolder(@Body() body: CreateFolderDto) {
-    return this.fileService.mkdir(body.path, body.folderName);
+  async createFolder(@Body() body: CreateFolderDto, @Req() req: Request) {
+    return this.fileService.mkdir(
+      this.getRequesterFolder(req),
+      body.path,
+      body.folderName,
+    );
+  }
+
+  private getRequesterFolder(req: Request): string {
+    const authUser = (
+      req as Request & { user?: { username?: string; sub?: string } }
+    ).user;
+    const username = authUser?.username ?? authUser?.sub;
+
+    if (!username || typeof username !== "string") {
+      throw new BadRequestException("Invalid authenticated user payload");
+    }
+
+    return username;
   }
 }

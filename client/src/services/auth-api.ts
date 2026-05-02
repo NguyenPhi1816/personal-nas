@@ -1,6 +1,13 @@
 import { httpClient } from "@/src/services/http-client";
 import type { LoginResponse, User } from "@/src/types/user.type";
 
+export interface RegisterRequest {
+  username: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+}
+
 export async function loginRequest(
   username: string,
   password: string,
@@ -9,6 +16,16 @@ export async function loginRequest(
     username,
     password,
   });
+  return data;
+}
+
+export async function registerRequest(
+  payload: RegisterRequest,
+): Promise<LoginResponse> {
+  const { data } = await httpClient.post<LoginResponse>(
+    "/auth/register",
+    payload,
+  );
   return data;
 }
 

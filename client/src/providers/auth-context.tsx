@@ -8,7 +8,11 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { checkAuthRequest, loginRequest } from "@/src/services/auth-api";
+import {
+  checkAuthRequest,
+  loginRequest,
+  registerRequest,
+} from "@/src/services/auth-api";
 import type { User } from "@/src/types/user.type";
 import {
   clearToken,
@@ -20,6 +24,12 @@ interface AuthContextValue {
   user: User | null;
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
+  register: (
+    username: string,
+    password: string,
+    firstName?: string,
+    lastName?: string,
+  ) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -63,6 +73,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(response.user);
   }, []);
 
+  const register = useCallback(
+    async (
+      username: string,
+      password: string,
+      firstName?: string,
+      lastName?: string,
+    ) => {
+      const response = await registerRequest({
+        username,
+        password,
+        firstName,
+        lastName,
+      });
+      setStoredToken(response.token);
+      setToken(response.token);
+      setUser(response.user);
+    },
+    [],
+  );
+
   const logout = useCallback(() => {
     clearToken();
     setToken(null);
@@ -74,10 +104,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       token,
       login,
+      register,
       logout,
       isAuthenticated: Boolean(token),
     }),
-    [user, token, login, logout],
+    [user, token, login, register, logout],
   );
 
   if (isLoading) {

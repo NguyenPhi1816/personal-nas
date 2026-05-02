@@ -31,6 +31,14 @@ export function getJwtSecret(): string {
   return readTextEnv("JWT_SECRET") ?? "dev-secret";
 }
 
+export function getDatabaseUrl(): string {
+  const value = readTextEnv("DATABASE_URL");
+  if (!value) {
+    throw new Error("DATABASE_URL is required");
+  }
+  return value;
+}
+
 export function getNasRootDir(): string {
   return readTextEnv("NAS_ROOT_DIR") ?? path.join(process.cwd(), "nas-storage");
 }
